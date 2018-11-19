@@ -1,5 +1,5 @@
 build:
-	gcc sudoku_solver.c -lgomp -o sudoku
+	gcc serial_solver.c -lgomp -o sudoku
 	
 clean:
 	rm sudoku
