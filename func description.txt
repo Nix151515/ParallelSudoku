@@ -1,0 +1,25 @@
+sudoku_elem  ->	val
+			 ->	fixed
+			   
+tried_value  -> rowPos
+			 -> colPos
+			 -> value
+
+allTriedValues  -> count
+				-> size
+				-> allValues[] (tried_value)
+			
+grid = sudoku_elem[][]
+
+
+ /*   Insert a valid value in a random selected place  */
+ int insertValuesInSudokuGrid(sudoku_elem **grid)  
+ 
+   /*  Set the row and col with the first empty box  */
+ int getUnfilledPosition(sudoku_elem **grid, int *row, int *col) 
+ 
+  /* Returns 1: if no duplicates found in the sudoku constraints */  
+ int verifyRules(sudoku_elem** grid, int rowPos, int colPos, int valToCheck)  
+ 
+ /*  Insert a 'tried value' (row, col, val) into the allValues array  */
+ int insertIntoTriedValues(allTriedValues *a, int row, int col, int value)
