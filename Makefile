@@ -1,7 +1,7 @@
 all: build1 build2
 
 build2: pthreads.c
-	gcc pthreads.c -o pthreads -lpthread
+	gcc pthreads.c -o pthreads -lpthread -lgomp
 	
 build1: sudoku.c
 	gcc sudoku.c -lgomp -o sudoku
@@ -14,4 +14,8 @@ run1:
 	./sudoku
 	
 run2:
+	./pthreads
+	
+run:
+	./sudoku
 	./pthreads

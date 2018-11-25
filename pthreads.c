@@ -3,6 +3,8 @@
  #include <assert.h>  
  #include <omp.h>
 #include <pthread.h>
+#include <inttypes.h>
+
 #define NUM_THREADS     9
    
  #define GRID_SIZE 9  
@@ -191,11 +193,52 @@
  }  
    
 
-void *TryTheNumber(void *threadid)
+
+   
+ void printSudokuGrid(sudoku_elem **grid)  
+ {  
+   int i, j;  
+   for (i = 0; i < GRID_SIZE; i++)  
+   {  
+      printf("\n");  
+      for (j = 0; j < GRID_SIZE; j++ )  
+        printf("%d-%d ", grid[i][j].val, grid[i][j].fixed);  
+   }
+   printf("\n-----------------------------------\n");
+ }  
+   
+ int isValidSudoku(sudoku_elem **grid)  
+ {  
+   int i, j;  
+   for (i=0; i < GRID_SIZE; i++)  
+   {  
+     for (j=0; j < GRID_SIZE; j++)  
+     {  
+       if (grid[i][j].val != 0)  
+       {  
+         int temp = grid[i][j].val;  
+         grid[i][j].val = 0;  
+         int retval = verifyRules(grid, i, j, temp);  
+         grid[i][j].val = temp;  
+         if (retval == -1)  
+         {  
+           return 0;  
+         }  
+       }  
+     }  
+   }  
+   return 1;  
+ }  
+
+
+
+
+void *TryTheNumber(void *threadID)
 {
 
+  int threadid = *((int*)(&threadID)) +1;
   pthread_detach(pthread_self());
-  printf("Hello from thread %d \n",threadid);
+  printf("Hello from thread %d \n",(int) threadid);
  
 
 
@@ -225,6 +268,8 @@ void *TryTheNumber(void *threadid)
    }  
   // printf("Checkpoint thread %d \n",threadid);
 
+
+   double startime = omp_get_wtime();
   if(getUnfilledPosition(grid, &row, &col) == 0)
   {
       int retVal = verifyRules(grid, row, col, threadid);  
@@ -361,65 +406,19 @@ void *TryTheNumber(void *threadid)
        }  // 2-nd while ends
      } // if ends  
    } // first while ends
-   printf("Thread %d finished\n", threadid);
+   double endtime = omp_get_wtime();
+   printf("Thread %d finished in %lf\n", threadid, endtime - startime);
+   //printf("\n\nSolving time = %lf\n", endtime - startime);
    printSudokuGrid(grid);  
-   free(allValuesStack.allValues);     
+   free(allValuesStack.allValues);
+   for(i = 0; i<NUM_THREADS; i++)
+      pthread_exit(i);
    //pthread_exit(NULL);
 }
 
 
 
- // All the magic happens here.  
- void sudokuSolver(sudoku_elem **grid)  
- {  
-   //assert(grid);  
-   /*  Stack with the previously selected values (from all boxes) */
 
-   pthread_t threads[NUM_THREADS];
-   int t, rc;
-
-    for(t = 0 ; t < NUM_THREADS ; t++) {
-      printf("Creating thread %d\n", t);
-      rc = pthread_create(&threads[t], NULL, TryTheNumber, (void *)t);
-      pthread_exit(NULL);
-    }
-  }
-
-   
- void printSudokuGrid(sudoku_elem **grid)  
- {  
-   int i, j;  
-   for (i = 0; i < GRID_SIZE; i++)  
-   {  
-     printf("\n");  
-     for (j = 0; j < GRID_SIZE; j++ )  
-       printf("%d-%d ", grid[i][j].val, grid[i][j].fixed);  
-   }  
- }  
-   
- int isValidSudoku(sudoku_elem **grid)  
- {  
-   int i, j;  
-   for (i=0; i < GRID_SIZE; i++)  
-   {  
-     for (j=0; j < GRID_SIZE; j++)  
-     {  
-       if (grid[i][j].val != 0)  
-       {  
-         int temp = grid[i][j].val;  
-         grid[i][j].val = 0;  
-         int retval = verifyRules(grid, i, j, temp);  
-         grid[i][j].val = temp;  
-         if (retval == -1)  
-         {  
-           return 0;  
-         }  
-       }  
-     }  
-   }  
-   
-   return 1;  
- }  
    
  int main()  
  {  
@@ -427,11 +426,12 @@ void *TryTheNumber(void *threadid)
    
    newGrid = allocInitSudoku();  
    //sudoku_elem newGrid[GRID_SIZE][GRID_SIZE];  
-   char *sudoku = "........3..1..56...9..4..7......9.5.7.......8.5.4.2....8..2..9...35..1..6........";  
+   char *sudoku = 
+   //"........3..1..56...9..4..7......9.5.7.......8.5.4.2....8..2..9...35..1..6........";  
    // Some of the other extreme Sudoku puzzles, you can try this out.  
    //".2..5.7..4..1....68....3...2....8..3.4..2.5.....6...1...2.9.....9......57.4...9..";  
    // ".......12........3..23..4....18....5.6..7.8.......9.....85.....9...4.5..47...6...";  
-   // "..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4...9";  
+    "..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4...9";  
    
    for (i=0; i < GRID_SIZE; i++)  
    {  
@@ -454,11 +454,25 @@ void *TryTheNumber(void *threadid)
    printf("\n -0 ==> initially empty cell\n -1 ==> fixed cell, i.e., initially filled cell\n");  
    printSudokuGrid(newGrid);  
    
-   double startime = omp_get_wtime();  
-   sudokuSolver(newGrid);  
-   double endtime = omp_get_wtime();  
-   printf("\n\n Solved Sudoku ");  
+  // double startime = omp_get_wtime(); 
+
+
+   pthread_t threads[NUM_THREADS];
+   int t, rc;
+
+    for(t = 0 ; t < NUM_THREADS ; t++) {
+      ret =  verifyRules(newGrid, 0, 0, t+1);
+      if(ret == 1)
+      {
+        printf("Creating thread %d\n", t+1);
+        rc = pthread_create(&threads[t], NULL, TryTheNumber, (void *)t);
+      }
+    }  
+    pthread_exit(NULL);
+
+
+   // double endtime = omp_get_wtime();  
+   // printf("\n\nSolving time = %lf\n", endtime - startime);
    
-   printSudokuGrid(newGrid);  
-   printf("\n\nSolving time = %lf\n", endtime - startime);  
+   return 0;  
  }  
