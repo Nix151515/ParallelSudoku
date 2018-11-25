@@ -1,3 +1,4 @@
-Limit the threads by verifying the rules first
-Increase difficulty
-* Limit the domain
+Improve the idea:
+
+Use a stack (syncronize with locks) and put tasks that represent backtracking branches.
+The threads from the workpool take tasks from there.
