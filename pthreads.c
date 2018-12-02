@@ -7,7 +7,7 @@
 
 #define NUM_THREADS     9
    
- #define GRID_SIZE 9  
+#define GRID_SIZE 9
 
  struct sudoku_elem_t  
  {  
@@ -17,6 +17,7 @@
  typedef struct sudoku_elem_t sudoku_elem;  
 
  sudoku_elem **newGrid;
+ int stopThreads = 0;
    
  struct triedValue_t  
  {  
@@ -200,11 +201,23 @@
    int i, j;  
    for (i = 0; i < GRID_SIZE; i++)  
    {  
-      printf("\n");  
-      for (j = 0; j < GRID_SIZE; j++ )  
-        printf("%d-%d ", grid[i][j].val, grid[i][j].fixed);  
+      if(i % 3 == 0)
+      {
+          printf("\n-------------------------\n");
+      }
+      else
+        printf("\n");  
+      for (j = 0; j < GRID_SIZE; j++ )
+      {
+        if(j % 3 == 0)
+        {
+          printf("| ");
+        }
+        printf("%d ", grid[i][j].val);
+      }
+      printf("| ");
    }
-   printf("\n-----------------------------------\n");
+  printf("\n-------------------------\n");
  }  
    
  int isValidSudoku(sudoku_elem **grid)  
@@ -282,7 +295,12 @@ void *TryTheNumber(void *threadID)
    
    /*   while there are empty boxes  */
    while (getUnfilledPosition(grid, &row, &col) == 0)  
-   { 
+   {
+     if(stopThreads == 1)
+     {
+        printf("Interrupting thread (point1) %d\n",threadid);
+        pthread_exit(threadID);
+     }
      int startVal = 1;
 
     /* Search for a valid value and insert it into the tried values
@@ -313,6 +331,14 @@ void *TryTheNumber(void *threadID)
    
        while (grid[backtrack_row][backtrack_col].val == 0)  
        {
+          if(stopThreads == 1)
+         {
+            printf("Interrupting thread (point2) %d\n",threadid);
+            //return;
+            pthread_exit(threadID);
+         }
+
+
          if (shouldBacktrack && (allValuesStack.count > 0))  
          { 
           /* Go a level back  */
@@ -373,7 +399,12 @@ void *TryTheNumber(void *threadID)
 
         /* Fill the route emptied by going back */
          while (startPos <= backtrackPos)  
-         {  
+         {
+           if(stopThreads == 1)
+           {
+              printf("Interrupting thread (point3) %d\n",threadid);
+              pthread_exit(threadID);
+           }
            start_row = startPos / 9;  
            start_col = startPos % 9;  
            if (grid[start_row][start_col].fixed == 0)  
@@ -411,8 +442,12 @@ void *TryTheNumber(void *threadID)
    //printf("\n\nSolving time = %lf\n", endtime - startime);
    printSudokuGrid(grid);  
    free(allValuesStack.allValues);
-   for(i = 0; i<NUM_THREADS; i++)
-      pthread_exit(i);
+
+  printf("StopThreads \n");
+   stopThreads = 1;
+
+   //for(i = 0; i<NUM_THREADS; i++)
+    //  pthread_exit(i);
    //pthread_exit(NULL);
 }
 
@@ -464,7 +499,7 @@ void *TryTheNumber(void *threadID)
       ret =  verifyRules(newGrid, 0, 0, t+1);
       if(ret == 1)
       {
-        printf("Creating thread %d\n", t+1);
+       // printf("Creating thread %d\n", t+1);
         rc = pthread_create(&threads[t], NULL, TryTheNumber, (void *)t);
       }
     }  
