@@ -1,4 +1,4 @@
-Improve the idea (inefficient si hard to implement):
+Improve the idea (inefficient and hard to implement):
 
 Use a stack (syncronize with locks) and put tasks that represent backtracking branches.
 The threads from the workpool take tasks from there.
