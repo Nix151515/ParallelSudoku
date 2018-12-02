@@ -11,11 +11,11 @@ clean: sudoku pthreads
 	rm pthreads
 	
 run1:
-	./sudoku
+	time ./sudoku
 	
 run2:
-	./pthreads
+	time ./pthreads
 	
 run:
-	./sudoku
-	./pthreads
+	time ./sudoku
+	time ./pthreads
