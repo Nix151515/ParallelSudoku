@@ -3,6 +3,8 @@ Improve the idea (inefficient si hard to implement):
 Use a stack (syncronize with locks) and put tasks that represent backtracking branches.
 The threads from the workpool take tasks from there.
 
-Bugs:
+Things to fix:
 - Stop all the threads after one finishes
 - Find a way to stop threads starting after the solution number
+- Table display
+- *Try to optimise the while
