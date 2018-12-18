@@ -1,9 +1,13 @@
 #include <stdio.h>  
  #include <stdlib.h>  
  #include <assert.h>  
- #include <omp.h>  
+ #include <omp.h>
+#include <pthread.h>
+#include <inttypes.h>
+#include <math.h>
+
    
- #define GRID_SIZE 9  
+ #define GRID_SIZE 16
    
  struct sudoku_elem_t  
  {  
@@ -100,7 +104,8 @@
  int verifyRules(sudoku_elem** grid, int rowPos, int colPos, int valToCheck)  
  {  
    int i, j;  
-   // Check if the given number exists in the row or the column  
+   int sqrtGrid = (int)floor(sqrt(GRID_SIZE));
+   // Check if the given number exists in the row or the column
    for (i = 0; i < GRID_SIZE; i++)  
    {  
      if (grid[rowPos][i].val == valToCheck)  
@@ -109,15 +114,16 @@
      }  
      if (grid[i][colPos].val == valToCheck)  
      {  
+       // printf("grid[%d][%d] = %d \n",i,colPos,valToCheck);
        return -1;  
      }  
    }  
    
    // Check if the same number exists in the 3x3 tile of rowPos and colPos  
-   int bound3x3TopLeft_x = (rowPos / 3) * 3;  
-   int bound3x3TopLeft_y = (colPos / 3) * 3;  
-   int bound3x3BottomRight_x = ((rowPos / 3) + 1) * 3;  
-   int bound3x3BottomRight_y = ((colPos / 3) + 1) * 3;  
+   int bound3x3TopLeft_x = (rowPos / sqrtGrid) * sqrtGrid;  
+   int bound3x3TopLeft_y = (colPos / sqrtGrid) * sqrtGrid;  
+   int bound3x3BottomRight_x = ((rowPos / sqrtGrid) + 1) * sqrtGrid;  
+   int bound3x3BottomRight_y = ((colPos / sqrtGrid) + 1) * sqrtGrid;  
    
    for (i = bound3x3TopLeft_x; i < bound3x3BottomRight_x; i++)  
    {  
@@ -125,6 +131,7 @@
      {  
        if (grid[i][j].val == valToCheck)  
        {  
+
          return -1;  
        }  
      }  
@@ -142,8 +149,8 @@
    /* Randomly select the row and column  */
    while (1)  
    {  
-     rowPos = rand() % 9;  
-     colPos = rand() % 9;  
+     rowPos = rand() % GRID_SIZE;  
+     colPos = rand() % GRID_SIZE;  
      if (grid[rowPos][colPos].val == 0)  
      {  
        break;  
@@ -152,7 +159,7 @@
    
    int i;  
    /*   Trying to find a value for the selected box */
-   for (i = 1; i <=9; i++)
+   for (i = 1; i <=GRID_SIZE; i++)
    {  
      int retVal = verifyRules(grid, rowPos, colPos, i); 
      /*  If no duplicates found for the value (i)  */ 
@@ -171,9 +178,9 @@
  int getUnfilledPosition(sudoku_elem **grid, int *row, int *col)  
  {  
    int i, j;  
-   for (i = 0; i < 9; i++)  
+   for (i = 0; i < GRID_SIZE; i++)  
    {  
-     for (j = 0; j < 9; j++)  
+     for (j = 0; j < GRID_SIZE; j++)  
      {  
        if (grid[i][j].val == 0 && grid[i][j].fixed != 1)  
        {  
@@ -191,7 +198,8 @@
  {  
    assert(grid);  
    /*  Stack with the previously selected values (from all boxes) */
-   allTriedValues allValuesStack;  
+   allTriedValues allValuesStack;
+   int a = 0,b = 0, c=0, d=0;
    int ret = initAllTriedValues(&allValuesStack);
    int row = 0, col = 0;  
    if (ret == -1)  
@@ -209,12 +217,14 @@
     /* Search for a valid value and insert it into the tried values
                                                   for that box.
       Also, temporarely place the value on the grid  */
-     for (startVal = 1; startVal <= 9; startVal++)  
+     for (startVal = 1; startVal <= GRID_SIZE; startVal++)  
      {  
        int retVal = verifyRules(grid, row, col, startVal);  
        if (retVal == 1)  
        {  
          grid[row][col].val = startVal;
+         if(allValuesStack.count == 0)
+          printf("Trying with %d\n",startVal );
          insertIntoTriedValues(&allValuesStack, row, col, startVal);  
          break;  
        }  
@@ -247,7 +257,7 @@
    
            grid[temprow][tempcol].val = 0;  
            /*  Check from the next possible value to 9  */
-           for (inc_val = inc_val; inc_val <= 9; inc_val++)  
+           for (inc_val = inc_val; inc_val <= GRID_SIZE; inc_val++)  
            {  
              int retVal = verifyRules(grid, temprow, tempcol, inc_val);
 
@@ -255,7 +265,18 @@
              if (retVal == 1)  
              {  
                grid[temprow][tempcol].val = inc_val;  
-               shouldBacktrack = 0;  
+               shouldBacktrack = 0;
+               if(allValuesStack.count == 0)
+                  printf("Trying with %d\n",inc_val );
+               if(a != grid[0][0].val || b!=grid[0][1].val || c!=grid[0][2].val || d!=grid[0][3].val){
+                  a = grid[0][0].val;
+                  b = grid[0][1].val;
+                  c = grid[0][2].val;
+                  d = grid[0][3].val;
+                  printf("%d %d %d %d\n",a,b,c,d); 
+               }
+
+ 
                insertIntoTriedValues(&allValuesStack, temprow, tempcol, inc_val);  
                break;  
              }  
@@ -270,7 +291,7 @@
          }
          /* All good, take the next box */
          int start_row, start_col;  
-         if (tempcol == 8)  
+         if (tempcol == GRID_SIZE-1)  
          {  
            start_col = 0;  
            start_row = temprow + 1;  
@@ -282,8 +303,8 @@
          }
 
         /* Calculate the box number */
-         int backtrackPos = backtrack_row*9 + backtrack_col;
-         int startPos = start_row*9 + start_col;
+         int backtrackPos = backtrack_row*GRID_SIZE + backtrack_col;
+         int startPos = start_row*GRID_SIZE + start_col;
 
          /* Bad, re-iterate the second while  */
          if (startPos > backtrackPos)  
@@ -295,17 +316,19 @@
         /* Fill the route emptied by going back */
          while (startPos <= backtrackPos)  
          {  
-           start_row = startPos / 9;  
-           start_col = startPos % 9;  
+           start_row = startPos / GRID_SIZE;  
+           start_col = startPos % GRID_SIZE;  
            if (grid[start_row][start_col].fixed == 0)  
            {  
              grid[start_row][start_col].val = 0;  
-             for (startVal = 1; startVal <= 9; startVal++)  
+             for (startVal = 1; startVal <= GRID_SIZE; startVal++)  
              {  
                int retVal = verifyRules(grid, start_row, start_col, startVal);  
                if (retVal == 1)  
                {  
-                 grid[start_row][start_col].val = startVal;  
+                 grid[start_row][start_col].val = startVal;
+                 if(allValuesStack.count == 0)
+                    printf("Trying with %d\n",startVal );  
                  insertIntoTriedValues(&allValuesStack, start_row, start_col, startVal);  
                  break;  
                }  
@@ -329,16 +352,31 @@
    } // first while ends
    free(allValuesStack.allValues);  
  }  
-   
- void printSudokuGrid(sudoku_elem **grid)  
+  void printSudokuGrid(sudoku_elem **grid)  
  {  
    int i, j;  
    for (i = 0; i < GRID_SIZE; i++)  
    {  
-     printf("\n");  
-     for (j = 0; j < GRID_SIZE; j++ )  
-       printf("%d-%d ", grid[i][j].val, grid[i][j].fixed);  
-   }  
+      if(i % (int)floor(sqrt(GRID_SIZE)) == 0)
+      {
+          printf("\n---------------------------------------------------------\n");
+      }
+      else
+        printf("\n");  
+      for (j = 0; j < GRID_SIZE; j++ )
+      {
+        if(j % (int)floor(sqrt(GRID_SIZE)) == 0)
+        {
+          printf("| ");
+        }
+        if(grid[i][j].val < 10)
+        	printf("%d  ", grid[i][j].val);
+        else
+        	printf("%d ", grid[i][j].val);
+      }
+      printf("| ");
+   }
+  printf("\n---------------------------------------------------------\n");
  }  
    
  int isValidSudoku(sudoku_elem **grid)  
@@ -371,21 +409,55 @@
    
    sudoku_elem **newGrid = allocInitSudoku();  
    //sudoku_elem newGrid[GRID_SIZE][GRID_SIZE];  
-   char *sudoku = "........3..1..56...9..4..7......9.5.7.......8.5.4.2....8..2..9...35..1..6........";  
-   // Some of the other extreme Sudoku puzzles, you can try this out.  
-   //".2..5.7..4..1....68....3...2....8..3.4..2.5.....6...1...2.9.....9......57.4...9..";  
-   // ".......12........3..23..4....18....5.6..7.8.......9.....85.....9...4.5..47...6...";  
-   // "..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4...9";  
+   char *sudoku =
+     // Too fast cases
+   // "........3..1..56...9..4..7......9.5.7.......8.5.4.2....8..2..9...35..1..6........";  
+   // ".2..5.7..4..1....68....3...2....8..3.4..2.5.....6...1...2.9.....9......57.4...9..";  
+   // ".......12........3..23..4....18....5.6..7.8.......9.....85.....9...4.5..47...6..."; 
+
+   // Good test case - 9 secs all threads, >20 serial
+     // "..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4...9";  
+
+    // Good test case - 6 secs all threads
+   	// "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......";
+
+
+   // "................................................................................................................................................................................................................................................................";
+   // "................................................................................................................................................................................................................................................................";
+   //  https://krazydad.com/hexsudoku/sfiles/KD_HexSudoku_STH_8_v1.pdf
+   //  https://krazydad.com/hexsudoku/index.php?sv=STH
+
+   // Asta ii da in cap bine (modificat in loc de 0 cu 16) -> Test case bun
+   // "ac......7.85....de...7.5...4.g..g...e329.a....4....5...6d.f...2.9..b.46c8f1d.7.e..e.7......3.d.66....5......b...2d1.8a.3cb.g........c.516.d2.9a3...e......3....24.6.3......1.e..3.5.62gb98a.c..4.g...d.ef...3....6....a.39b7...f..3.4...g.e...6c....f6.2......e8";
+
+   // a = 10 ; b = 11 ; c = 12 ; d = 13; e = 14; f = 15 ; g = 16
+
+   // Challenging, vol 1, book 6, sudoku 1 ( ii da bine si asta)
+       ".g.........e375...e2..cbf..9..8.f.....28a.7.d..c..3........5a.e21.45.7.2b..c....b7.fd...32.g41..c..9..b.7......e.e.8.1.g5..4........2..7c.d.e.a.g......c.e..9..7..cde.a1...72.45....g..d4.a.6f.18b.4c........a..5..3.b.48g.....9.2..3..fe6..54...6f78.........d.";
+
+   	//  Book 99 (ii da bine asta)
+     // "..d8c62..1b.7.e.........7.6..9b1...79...2.gcf....2.6ag.........54a9.62.f5b8..d.....2d4....3......8f.7.5....a1.2.d.......g92..8.b2.e..8fd.......g.3.ab....4.2.ed......5....ce6.....b..ae19.7d.c429.........16a.7....e27.c...9b...8f2..9.g.........1.4.e3..8ag92..";
+
+
    
    for (i=0; i < GRID_SIZE; i++)  
    {  
      for (j=0; j < GRID_SIZE; j++)  
      {  
-       if (sudoku[i*GRID_SIZE + j] != '.')  
-       {  
-         newGrid[i][j].fixed = 1;  
-         newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0';  
-       }  
+       if (sudoku[i*GRID_SIZE + j] != '.')
+       {
+	       	if(sudoku[i*GRID_SIZE + j] >= 'a' && sudoku[i*GRID_SIZE + j] <= 'g')
+	       	{
+ 
+	         newGrid[i][j].fixed = 1;  
+	         newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0'- 39;  
+	       	}
+	       	else  
+	        {  
+	         newGrid[i][j].fixed = 1;  
+	         newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0';  
+	        }
+        }  
      }  
    }  
    

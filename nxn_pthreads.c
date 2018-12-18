@@ -499,7 +499,7 @@ void *TryTheNumber(void *threadID)
 
    // a = 10 ; b = 11 ; c = 12 ; d = 13; e = 14; f = 15 ; g = 16
 
-   // Challenging, book 6, sudoku 1 ( ii da bine si asta)
+   // Challenging, vol 1, book 6, sudoku 1 (3m57s paralel, >1h30 serial)
         ".g.........e375...e2..cbf..9..8.f.....28a.7.d..c..3........5a.e21.45.7.2b..c....b7.fd...32.g41..c..9..b.7......e.e.8.1.g5..4........2..7c.d.e.a.g......c.e..9..7..cde.a1...72.45....g..d4.a.6f.18b.4c........a..5..3.b.48g.....9.2..3..fe6..54...6f78.........d.";
 
    	//  Book 99 (ii da bine asta)
