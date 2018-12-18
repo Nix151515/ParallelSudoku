@@ -11,6 +11,7 @@ Things to fix:
 
 Performance evaluation:
 -TRAC & SVN
+- 2 masini fep
 - grafic timpi & speedup (omp, pth vs serial)
 - grafic cu toate comparatiile
 - PPT (fiecare prezinta partea sa, aceeasi prezentare)
