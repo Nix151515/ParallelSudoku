@@ -1,38 +1,82 @@
-Testing :
 
+
+Performance evaluation:
+-TRAC & SVN
+- 2 masini fep
+- grafic timpi & speedup (omp, pth vs serial)
+- grafic cu toate comparatiile
+- PPT (fiecare prezinta partea sa, aceeasi prezentare)
+- grafic in fct de timp si nr_threads
+
+
+
+
+
+
+Testing :
 
 ibm-dp.q  - challenging v1, b6,1
 
-16 threads
-finished : 237.77s
-real : 3m57.78 s
+	16 threads
+	finished : 237.77s
+	real : 3m57.78 s
 
-serial
-start la 15:21 : 4-16-1-6
-		 15:26 : 4-16-8-11
-		 15:30 : 4-16-8-12
-		 15:34 : 4-16-9-11
 
-		 15:50 : 6-16-8-11
-		 16:04 : 6-16-11-10
+	2 threads
+	real :
 
-		 16:13 : 9-16-1-11
-		 16:24 : 9-16-8-6
-		 16:34 : 9-16-8-11
-		 17:01 : 9-16-8-12
-		 17:19 : 9-16-13-12
+	3 threads
+	real : 86m22.178s = 1h26m22s
 
-		 17:24 : 10-16-6-12
-		 17:31 : 10-16-8-11
-		 17:37 : 10-16-11-6
+	4 threads
+	real : 16m57.528d
 
-		 17:38 : 13-16-8-6
-		 17:42 : 13-16-8-11
+	5 threads
 
 
 
+	serial
+		start la 15:21 : 4-16-1-6
+			 15:26 : 4-16-8-11
+			 15:30 : 4-16-8-12
+			 15:34 : 4-16-9-11
+
+			 15:50 : 6-16-8-11
+			 16:04 : 6-16-11-10
+
+			 16:13 : 9-16-1-11
+			 16:24 : 9-16-8-6
+			 16:34 : 9-16-8-11
+			 17:01 : 9-16-8-12
+			 			 -10
+			 			 -11
+			 17:19 : 9-16-13-12
+
+			 17:24 : 10-16-6-12
+			 17:31 : 10-16-8-11
+			 17:37 : 10-16-11-6
+
+			 17:38 : 13-16-8-6
+			 17:42 : 13-16-8-11
+
+	141m5s = 2h21m5s
+
+	4 - aproximativ 20m
+	6 - aproximativ 25m
+	9 - aproximativ 1h10m
+	10 - aproximativ 15m
+	13 - aproximativ 4m
 
 
+
+
+O imbunatatire : cand un thread termina o valoare, trece la alta neluata
+Dezavantaje : Avand in vedere numarul mic de valori posibile, nu are sens
+			  Necesita sincronizare
+			  Ideea a venit la EP si trebuie modificat mult in cod
+			  Testare dificila, avand in vedere timpii mari
+			  Sunt mai multe locuri in care stiva ramane goala si e dificil sa ii impunem valori
+Avantaje : Economiseste calcule redundante
 
 
 

@@ -7,7 +7,7 @@
 #include <math.h>
 
 
-#define NUM_THREADS 16
+#define NUM_THREADS 2
    
 #define GRID_SIZE 16
 
@@ -267,6 +267,7 @@ void *TryTheNumber(void *threadID)
 
 
   allTriedValues allValuesStack;  
+     int a = 0,b = 0, c=0, d=0;
   int ret = initAllTriedValues(&allValuesStack);
   int row = 0, col = 0;  
   if (ret == -1)  
@@ -300,7 +301,7 @@ void *TryTheNumber(void *threadID)
        if (retVal == 1)  
        {  
          grid[row][col].val = threadid;
-         //insertIntoTriedValues(&allValuesStack, row, col, startVal);
+         insertIntoTriedValues(&allValuesStack, row, col, threadid);
        }
   }
    
@@ -323,6 +324,12 @@ void *TryTheNumber(void *threadID)
        if (retVal == 1)  
        {  
          grid[row][col].val = startVal;
+
+         // Testing purposes
+         //if(allValuesStack.count == 0)
+         // printf("Trying with %d\n",startVal );
+
+
          insertIntoTriedValues(&allValuesStack, row, col, startVal);  
           break;
        }  
@@ -372,6 +379,19 @@ void *TryTheNumber(void *threadID)
              {  
                grid[temprow][tempcol].val = inc_val;  
                shouldBacktrack = 0;  
+
+                // Testing purposes
+               //if(allValuesStack.count == 0)
+               //   printf("Trying with %d\n",inc_val );
+               if(a != grid[0][0].val || b!=grid[0][1].val || c!=grid[0][2].val || d!=grid[0][3].val){
+                  a = grid[0][0].val;
+                  b = grid[0][1].val;
+                  c = grid[0][2].val;
+                  d = grid[0][3].val;
+                  printf("%d %d %d %d -> %d\n",a,b,c,d, threadid); 
+               }
+
+
                insertIntoTriedValues(&allValuesStack, temprow, tempcol, inc_val);  
                break;  
              }  
@@ -426,7 +446,13 @@ void *TryTheNumber(void *threadID)
                int retVal = verifyRules(grid, start_row, start_col, startVal);  
                if (retVal == 1)  
                {  
-                 grid[start_row][start_col].val = startVal;  
+                 grid[start_row][start_col].val = startVal;
+
+                  // Testing purposes
+                 // if(allValuesStack.count == 0)
+                 //   printf("Trying with %d\n",startVal ); 
+
+
                  insertIntoTriedValues(&allValuesStack, start_row, start_col, startVal);  
                  break;  
                }  
@@ -471,6 +497,7 @@ void *TryTheNumber(void *threadID)
    int i, j;  
    
    newGrid = allocInitSudoku();  
+
    //sudoku_elem newGrid[GRID_SIZE][GRID_SIZE];  
    char *sudoku = 
 
@@ -547,16 +574,23 @@ void *TryTheNumber(void *threadID)
 	getUnfilledPosition(newGrid, &r, &c);
 	printf("Starting threads on (%d, %d) \n", r,c);
 
-    for(t = 0 ; t < NUM_THREADS ; t++) {
-    	// if(count == NUM_THREADS)
-    	// 	break;
+  //while(count < NUM_THREADS)
+    for(t = 0 ; t < GRID_SIZE ; t++) {
+    	 if(count >= NUM_THREADS)
+       {
+        printf("Count = %d, NUM_THREADS = %d\n", count,NUM_THREADS);
+    	 	break;
+       }
 
       ret =  verifyRules(newGrid, r, c, t+1);
       if(ret == 1)
       {
+        count ++;
+        printf("Count is %d, thread %d started\n",count,t+1);
        // printf("Creating thread %d\n", t+1);
         rc = pthread_create(&threads[t], NULL, TryTheNumber, (void *)t);
-        // count ++;
+        
+        
       }
     }  
     pthread_exit(NULL);

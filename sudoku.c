@@ -266,6 +266,8 @@
              {  
                grid[temprow][tempcol].val = inc_val;  
                shouldBacktrack = 0;
+
+               // Testing purposes
                if(allValuesStack.count == 0)
                   printf("Trying with %d\n",inc_val );
                if(a != grid[0][0].val || b!=grid[0][1].val || c!=grid[0][2].val || d!=grid[0][3].val){
