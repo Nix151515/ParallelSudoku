@@ -6,15 +6,20 @@
 #include <inttypes.h>
 #include <math.h>
 
+
+#define NUM_THREADS 16
    
- #define GRID_SIZE 16
-   
+#define GRID_SIZE 16
+
  struct sudoku_elem_t  
  {  
    int val;  
    int fixed;  
  };  
  typedef struct sudoku_elem_t sudoku_elem;  
+
+ sudoku_elem **newGrid;
+ int stopThreads = 0;
    
  struct triedValue_t  
  {  
@@ -47,7 +52,7 @@
    /* Allocate elements  */
    for (i = 0; i < GRID_SIZE; i++)  
    {  
-     grid[i] = (sudoku_elem *) calloc(9, sizeof(sudoku_elem));  
+     grid[i] = (sudoku_elem *) calloc(GRID_SIZE, sizeof(sudoku_elem));  
      if (grid[i] == NULL)  
      {  
        return NULL;  
@@ -114,6 +119,7 @@
      }  
      if (grid[i][colPos].val == valToCheck)  
      {  
+       // printf("grid[%d][%d] = %d \n",i,colPos,valToCheck);
        return -1;  
      }  
    }  
@@ -192,25 +198,120 @@
    return 1; // All the positions are filled appropriately  
  }  
    
- // All the magic happens here.  
- void sudokuSolver(sudoku_elem **grid)  
+
+
+   
+ void printSudokuGrid(sudoku_elem **grid)  
  {  
-   assert(grid);  
-   /*  Stack with the previously selected values (from all boxes) */
-   allTriedValues allValuesStack;
-   int a = 0,b = 0, c=0, d=0;
-   int ret = initAllTriedValues(&allValuesStack);
-   int row = 0, col = 0;  
-   if (ret == -1)  
+   int i, j;  
+   for (i = 0; i < GRID_SIZE; i++)  
    {  
-     printf("Failed to allocate memory returning\n");  
-     return;  
+      if(i % (int)floor(sqrt(GRID_SIZE)) == 0)
+      {
+          printf("\n---------------------------------------------------------\n");
+      }
+      else
+        printf("\n");  
+      for (j = 0; j < GRID_SIZE; j++ )
+      {
+        if(j % (int)floor(sqrt(GRID_SIZE)) == 0)
+        {
+          printf("| ");
+        }
+        if(grid[i][j].val < 10)
+          printf("%d  ", grid[i][j].val);
+        else
+          printf("%d ", grid[i][j].val);
+      }
+      printf("| ");
+   }
+  printf("\n---------------------------------------------------------\n");
+ }  
+   
+ int isValidSudoku(sudoku_elem **grid)  
+ {  
+   int i, j;  
+   for (i=0; i < GRID_SIZE; i++)  
+   {  
+     for (j=0; j < GRID_SIZE; j++)  
+     {  
+       if (grid[i][j].val != 0)  
+       {  
+         int temp = grid[i][j].val;  
+         grid[i][j].val = 0;  
+         int retval = verifyRules(grid, i, j, temp);  
+         grid[i][j].val = temp;  
+         if (retval == -1)  
+         {
+            printf("Not valid at (%d, %d), val %d \n",i ,j, temp); 
+           return 0;  
+         }  
+       }  
+     }  
    }  
-   int temp_cnt = 0;  
+   return 1;  
+ }  
+
+
+
+
+void *TryTheNumber(void *threadID)
+{
+
+  /*  Starting with 0 in main, incrementing   */
+  int threadid = *((int*)(&threadID)) + 1;
+
+  pthread_detach(pthread_self());
+  printf("Hello from thread %d \n",(int) threadid);
+ 
+
+
+  allTriedValues allValuesStack;  
+     int a = 0,b = 0, c=0, d=0;
+  int ret = initAllTriedValues(&allValuesStack);
+  int row = 0, col = 0;  
+  if (ret == -1)  
+  {  
+    printf("Failed to allocate memory returning\n");  
+    
+  }
+
+  int temp_cnt = 0;
+
+
+  int i,j;
+  sudoku_elem **grid;
+  grid = allocInitSudoku();
+  for (i=0; i < GRID_SIZE; i++)  
+   {  
+     for (j=0; j < GRID_SIZE; j++)  
+     {  
+         grid[i][j].fixed = newGrid[i][j].fixed;  
+         grid[i][j].val = newGrid[i][j].val;   
+     }  
+   }  
+
+
+
+   double startime = omp_get_wtime();
+  if(getUnfilledPosition(grid, &row, &col) == 0)
+  {
+      int retVal = verifyRules(grid, row, col, threadid);  
+       if (retVal == 1)  
+       {  
+         grid[row][col].val = threadid;
+         insertIntoTriedValues(&allValuesStack, row, col, threadid);
+       }
+  }
    
    /*   while there are empty boxes  */
    while (getUnfilledPosition(grid, &row, &col) == 0)  
-   { 
+   {
+     if(stopThreads == 1)
+     {
+        printf("Interrupting thread (point1) %d\n",threadid);
+        pthread_exit(threadID);
+     }
      int startVal = 1;
 
     /* Search for a valid value and insert it into the tried values
@@ -222,10 +323,10 @@
        if (retVal == 1)  
        {  
          grid[row][col].val = startVal;
-         if(allValuesStack.count == 0)
-          printf("Trying with %d\n",startVal );
+
+
          insertIntoTriedValues(&allValuesStack, row, col, startVal);  
-         break;  
+          break;
        }  
      }
 
@@ -243,6 +344,14 @@
    
        while (grid[backtrack_row][backtrack_col].val == 0)  
        {
+          if(stopThreads == 1)
+         {
+            printf("Interrupting thread (point2) %d\n",threadid);
+            //return;
+            pthread_exit(threadID);
+         }
+
+
          if (shouldBacktrack && (allValuesStack.count > 0))  
          { 
           /* Go a level back  */
@@ -264,20 +373,9 @@
              if (retVal == 1)  
              {  
                grid[temprow][tempcol].val = inc_val;  
-               shouldBacktrack = 0;
+               shouldBacktrack = 0;  
 
-               // Testing purposes
-               if(allValuesStack.count == 0)
-                  printf("Trying with %d\n",inc_val );
-               if(a != grid[0][0].val || b!=grid[0][1].val || c!=grid[0][2].val || d!=grid[0][3].val){
-                  a = grid[0][0].val;
-                  b = grid[0][1].val;
-                  c = grid[0][2].val;
-                  d = grid[0][3].val;
-                  printf("%d %d %d %d\n",a,b,c,d); 
-               }
 
- 
                insertIntoTriedValues(&allValuesStack, temprow, tempcol, inc_val);  
                break;  
              }  
@@ -292,7 +390,7 @@
          }
          /* All good, take the next box */
          int start_row, start_col;  
-         if (tempcol == GRID_SIZE-1)  
+         if (tempcol == GRID_SIZE - 1)  
          {  
            start_col = 0;  
            start_row = temprow + 1;  
@@ -304,8 +402,8 @@
          }
 
         /* Calculate the box number */
-         int backtrackPos = backtrack_row*GRID_SIZE + backtrack_col;
-         int startPos = start_row*GRID_SIZE + start_col;
+         int backtrackPos = backtrack_row* GRID_SIZE + backtrack_col;
+         int startPos = start_row* GRID_SIZE + start_col;
 
          /* Bad, re-iterate the second while  */
          if (startPos > backtrackPos)  
@@ -316,7 +414,12 @@
 
         /* Fill the route emptied by going back */
          while (startPos <= backtrackPos)  
-         {  
+         {
+           if(stopThreads == 1)
+           {
+              printf("Interrupting thread (point3) %d\n",threadid);
+              pthread_exit(threadID);
+           }
            start_row = startPos / GRID_SIZE;  
            start_col = startPos % GRID_SIZE;  
            if (grid[start_row][start_col].fixed == 0)  
@@ -328,8 +431,7 @@
                if (retVal == 1)  
                {  
                  grid[start_row][start_col].val = startVal;
-                 if(allValuesStack.count == 0)
-                    printf("Trying with %d\n",startVal );  
+
                  insertIntoTriedValues(&allValuesStack, start_row, start_col, startVal);  
                  break;  
                }  
@@ -351,84 +453,45 @@
        }  // 2-nd while ends
      } // if ends  
    } // first while ends
-   free(allValuesStack.allValues);  
- }  
-  void printSudokuGrid(sudoku_elem **grid)  
- {  
-   int i, j;  
-   for (i = 0; i < GRID_SIZE; i++)  
-   {  
-      if(i % (int)floor(sqrt(GRID_SIZE)) == 0)
-      {
-          printf("\n---------------------------------------------------------\n");
-      }
-      else
-        printf("\n");  
-      for (j = 0; j < GRID_SIZE; j++ )
-      {
-        if(j % (int)floor(sqrt(GRID_SIZE)) == 0)
-        {
-          printf("| ");
-        }
-        if(grid[i][j].val < 10)
-        	printf("%d  ", grid[i][j].val);
-        else
-        	printf("%d ", grid[i][j].val);
-      }
-      printf("| ");
-   }
-  printf("\n---------------------------------------------------------\n");
- }  
-   
- int isValidSudoku(sudoku_elem **grid)  
- {  
-   int i, j;  
-   for (i=0; i < GRID_SIZE; i++)  
-   {  
-     for (j=0; j < GRID_SIZE; j++)  
-     {  
-       if (grid[i][j].val != 0)  
-       {  
-         int temp = grid[i][j].val;  
-         grid[i][j].val = 0;  
-         int retval = verifyRules(grid, i, j, temp);  
-         grid[i][j].val = temp;  
-         if (retval == -1)  
-         {  
-           return 0;  
-         }  
-       }  
-     }  
-   }  
-   
-   return 1;  
- }  
+   double endtime = omp_get_wtime();
+   printf("Thread %d finished in %lf\n", threadid, endtime - startime);
+   printSudokuGrid(grid);  
+   free(allValuesStack.allValues);
+
+  printf("StopThreads \n");
+   stopThreads = 1;
+
+}
+
+
+
+
    
  int main()  
  {  
    int i, j;  
    
-   sudoku_elem **newGrid = allocInitSudoku();   
-   char *sudoku =
+   newGrid = allocInitSudoku();    
+   char *sudoku = 
    ".g.........e375...e2..cbf..9..8.f.....28a.7.d..c..3........5a.e21.45.7.2b..c....b7.fd...32.g41..c..9..b.7......e.e.8.1.g5..4........2..7c.d.e.a.g......c.e..9..7..cde.a1...72.45....g..d4.a.6f.18b.4c........a..5..3.b.48g.....9.2..3..fe6..54...6f78.........d.";
-   
+
    for (i=0; i < GRID_SIZE; i++)  
    {  
      for (j=0; j < GRID_SIZE; j++)  
      {  
        if (sudoku[i*GRID_SIZE + j] != '.')
        {
-	       	if(sudoku[i*GRID_SIZE + j] >= 'a' && sudoku[i*GRID_SIZE + j] <= 'g')
-	       	{
+          if(sudoku[i*GRID_SIZE + j] >= 'a' && sudoku[i*GRID_SIZE + j] <= 'g')
+          {
  
-	         newGrid[i][j].fixed = 1;  
-	         newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0'- 39;  
-	       	}
-	       	else  
-	        {  
-	         newGrid[i][j].fixed = 1;  
-	         newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0';  
-	        }
+           newGrid[i][j].fixed = 1;  
+           newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0'- 39;  
+          }
+          else  
+          {  
+           newGrid[i][j].fixed = 1;  
+           newGrid[i][j].val = sudoku[i*GRID_SIZE + j] - '0';  
+          }
         }  
      }  
    }  
@@ -437,16 +500,36 @@
    if (ret == 0)  
    {  
      printf("Invalid sudoku exiting.....\n");  
+     printSudokuGrid(newGrid);
      return -1;  
    }  
    printf("\n -0 ==> initially empty cell\n -1 ==> fixed cell, i.e., initially filled cell\n");  
    printSudokuGrid(newGrid);  
+
+   pthread_t threads[NUM_THREADS];
+   int t, rc, count = 0, r, c;
+
+   getUnfilledPosition(newGrid, &r, &c);
+   printf("Starting threads on (%d, %d) \n", r,c);
+
+    for(t = 0 ; t < GRID_SIZE ; t++) {
+       if(count >= NUM_THREADS)
+       {
+        printf("Count reached %d, exiting\n", count);
+        break;
+       }
+
+      ret =  verifyRules(newGrid, r, c, t+1);
+      if(ret == 1)
+      {
+        count ++;
+        printf("Count is %d, thread %d started\n",count,t+1);
+        rc = pthread_create(&threads[t], NULL, TryTheNumber, (void *)t);
+        
+        
+      }
+    }  
+    pthread_exit(NULL);
    
-   double startime = omp_get_wtime();  
-   sudokuSolver(newGrid);  
-   double endtime = omp_get_wtime();  
-   printf("\n\n Solved Sudoku ");  
-   
-   printSudokuGrid(newGrid);  
-   printf("\n\nSolving time = %lf\n", endtime - startime);  
+   return 0;  
  }  
